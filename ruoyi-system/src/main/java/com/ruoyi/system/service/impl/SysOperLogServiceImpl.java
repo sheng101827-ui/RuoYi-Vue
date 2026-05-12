@@ -1,5 +1,6 @@
 package com.ruoyi.system.service.impl;
 
+import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -72,5 +73,17 @@ public class SysOperLogServiceImpl implements ISysOperLogService
     public void cleanOperLog()
     {
         operLogMapper.cleanOperLog();
+    }
+
+    /**
+     * 删除某个时间之前的操作日志
+     *
+     * @param time 时间
+     * @return 结果
+     */
+    @Override
+    public int deleteOperLogByTime(Date time)
+    {
+        return operLogMapper.deleteOperLogByTime(time);
     }
 }

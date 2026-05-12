@@ -84,4 +84,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         truncate table sys_oper_log
     </update>
 
-</mapper> 
+	<delete id="deleteOperLogByTime" parameterType="Date">
+		delete from sys_oper_log where oper_time &lt; #{time}
+	</delete>
+
+</mapper>

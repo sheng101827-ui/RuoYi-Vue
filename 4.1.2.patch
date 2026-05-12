@@ -1,0 +1,413 @@
+--- a/ruoyi-system/src/main/java/com/ruoyi/system/service/ISysOperLogService.java
++++ b/ruoyi-system/src/main/java/com/ruoyi/system/service/ISysOperLogService.java
+@@ -1,54 +1,5 @@
+-<<<<<<< Updated upstream
+-package com.ruoyi.system.service;
+-
+-import java.util.List;
+-import com.ruoyi.system.domain.SysOperLog;
+-
+-/**
+- * 操作日志 服务层
+- * 
+- * @author ruoyi
+- */
+-public interface ISysOperLogService
+-{
+-    /**
+-     * 新增操作日志
+-     * 
+-     * @param operLog 操作日志对象
+-     */
+-    public void insertOperlog(SysOperLog operLog);
+-
+-    /**
+-     * 查询系统操作日志集合
+-     * 
+-     * @param operLog 操作日志对象
+-     * @return 操作日志集合
+-     */
+-    public List<SysOperLog> selectOperLogList(SysOperLog operLog);
+-
+-    /**
+-     * 批量删除系统操作日志
+-     * 
+-     * @param operIds 需要删除的操作日志ID
+-     * @return 结果
+-     */
+-    public int deleteOperLogByIds(Long[] operIds);
+-
+-    /**
+-     * 查询操作日志详细
+-     * 
+-     * @param operId 操作ID
+-     * @return 操作日志对象
+-     */
+-    public SysOperLog selectOperLogById(Long operId);
+-
+-    /**
+-     * 清空操作日志
+-     */
+-    public void cleanOperLog();
+-}
+-=======
+ package com.ruoyi.system.service;
+ 
++import java.util.Date;
+ import java.util.List;
+ import com.ruoyi.system.domain.SysOperLog;
+@@ -96,4 +47,11 @@
+      */
+     public void cleanOperLog();
++
++    /**
++     * 删除某个时间之前的操作日志
++     *
++     * @param time 时间
++     * @return 结果
++     */
++    public int deleteOperLogByTime(Date time);
+ }
+->>>>>>> Stashed changes
+--- a/ruoyi-system/src/main/java/com/ruoyi/system/mapper/SysOperLogMapper.java
++++ b/ruoyi-system/src/main/java/com/ruoyi/system/mapper/SysOperLogMapper.java
+@@ -1,54 +1,5 @@
+-<<<<<<< Updated upstream
+-package com.ruoyi.system.mapper;
+-
+-import java.util.List;
+-import com.ruoyi.system.domain.SysOperLog;
+-
+-/**
+- * 操作日志 数据层
+- * 
+- * @author ruoyi
+- */
+-public interface SysOperLogMapper
+-{
+-    /**
+-     * 新增操作日志
+-     * 
+-     * @param operLog 操作日志对象
+-     */
+-    public void insertOperlog(SysOperLog operLog);
+-
+-    /**
+-     * 查询系统操作日志集合
+-     * 
+-     * @param operLog 操作日志对象
+-     * @return 操作日志集合
+-     */
+-    public List<SysOperLog> selectOperLogList(SysOperLog operLog);
+-
+-    /**
+-     * 批量删除系统操作日志
+-     * 
+-     * @param operIds 需要删除的操作日志ID
+-     * @return 结果
+-     */
+-    public int deleteOperLogByIds(Long[] operIds);
+-
+-    /**
+-     * 查询操作日志详细
+-     * 
+-     * @param operId 操作ID
+-     * @return 操作日志对象
+-     */
+-    public SysOperLog selectOperLogById(Long operId);
+-
+-    /**
+-     * 清空操作日志
+-     */
+-    public void cleanOperLog();
+-}
+-=======
+ package com.ruoyi.system.mapper;
+ 
++import java.util.Date;
+ import java.util.List;
+ import com.ruoyi.system.domain.SysOperLog;
+@@ -96,4 +47,11 @@
+      */
+     public void cleanOperLog();
++
++    /**
++     * 删除某个时间之前的操作日志
++     *
++     * @param time 时间
++     * @return 结果
++     */
++    public int deleteOperLogByTime(Date time);
+ }
+->>>>>>> Stashed changes
+--- a/ruoyi-system/src/main/java/com/ruoyi/system/service/impl/SysOperLogServiceImpl.java
++++ b/ruoyi-system/src/main/java/com/ruoyi/system/service/impl/SysOperLogServiceImpl.java
+@@ -1,82 +1,5 @@
+-<<<<<<< Updated upstream
+-package com.ruoyi.system.service.impl;
+-
+-import java.util.List;
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.stereotype.Service;
+-import com.ruoyi.system.domain.SysOperLog;
+-import com.ruoyi.system.mapper.SysOperLogMapper;
+-import com.ruoyi.system.service.ISysOperLogService;
+-
+-/**
+- * 操作日志 服务层处理
+- * 
+- * @author ruoyi
+- */
+-@Service
+-public class SysOperLogServiceImpl implements ISysOperLogService
+-{
+-    @Autowired
+-    private SysOperLogMapper operLogMapper;
+-
+-    /**
+-     * 新增操作日志
+-     * 
+-     * @param operLog 操作日志对象
+-     */
+-    @Override
+-    public void insertOperlog(SysOperLog operLog)
+-    {
+-        operLogMapper.insertOperlog(operLog);
+-    }
+-
+-    /**
+-     * 查询系统操作日志集合
+-     * 
+-     * @param operLog 操作日志对象
+-     * @return 操作日志集合
+-     */
+-    @Override
+-    public List<SysOperLog> selectOperLogList(SysOperLog operLog)
+-    {
+-        return operLogMapper.selectOperLogList(operLog);
+-    }
+-
+-    /**
+-     * 批量删除系统操作日志
+-     * 
+-     * @param operIds 需要删除的操作日志ID
+-     * @return 结果
+-     */
+-    @Override
+-    public int deleteOperLogByIds(Long[] operIds)
+-    {
+-        return operLogMapper.deleteOperLogByIds(operIds);
+-    }
+-
+-    /**
+-     * 查询操作日志详细
+-     * 
+-     * @param operId 操作ID
+-     * @return 操作日志对象
+-     */
+-    @Override
+-    public SysOperLog selectOperLogById(Long operId)
+-    {
+-        return operLogMapper.selectOperLogById(operId);
+-    }
+-
+-    /**
+-     * 清空操作日志
+-     */
+-    @Override
+-    public void cleanOperLog()
+-    {
+-        operLogMapper.cleanOperLog();
+-    }
+-}
+-=======
+ package com.ruoyi.system.service.impl;
+ 
++import java.util.Date;
+ import java.util.List;
+ import org.springframework.beans.factory.annotation.Autowired;
+@@ -152,4 +75,15 @@
+         operLogMapper.cleanOperLog();
+     }
++
++    /**
++     * 删除某个时间之前的操作日志
++     *
++     * @param time 时间
++     * @return 结果
++     */
++    @Override
++    public int deleteOperLogByTime(Date time)
++    {
++        return operLogMapper.deleteOperLogByTime(time);
++    }
+ }
+->>>>>>> Stashed changes
+--- a/ruoyi-system/src/main/resources/mapper/system/SysOperLogMapper.xml
++++ b/ruoyi-system/src/main/resources/mapper/system/SysOperLogMapper.xml
+@@ -1,91 +1,2 @@
+-<<<<<<< Updated upstream
+-<?xml version="1.0" encoding="UTF-8" ?>
+-<!DOCTYPE mapper
+-PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+-"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+-<mapper namespace="com.ruoyi.system.mapper.SysOperLogMapper">
+-
+-	<resultMap type="SysOperLog" id="SysOperLogResult">
+-		<id     property="operId"         column="oper_id"        />
+-		<result property="title"          column="title"          />
+-		<result property="businessType"   column="business_type"  />
+-		<result property="method"         column="method"         />
+-		<result property="requestMethod"  column="request_method" />
+-		<result property="operatorType"   column="operator_type"  />
+-		<result property="operName"       column="oper_name"      />
+-		<result property="deptName"       column="dept_name"      />
+-		<result property="operUrl"        column="oper_url"       />
+-		<result property="operIp"         column="oper_ip"        />
+-		<result property="operLocation"   column="oper_location"  />
+-		<result property="operParam"      column="oper_param"     />
+-		<result property="jsonResult"     column="json_result"    />
+-		<result property="status"         column="status"         />
+-		<result property="errorMsg"       column="error_msg"      />
+-		<result property="operTime"       column="oper_time"      />
+-		<result property="costTime"       column="cost_time"      />
+-	</resultMap>
+-
+-	<sql id="selectOperLogVo">
+-        select oper_id, title, business_type, method, request_method, operator_type, oper_name, dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg, oper_time, cost_time
+-        from sys_oper_log
+-    </sql>
+-    
+-	<insert id="insertOperlog" parameterType="SysOperLog">
+-		insert into sys_oper_log(title, business_type, method, request_method, operator_type, oper_name, dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg, cost_time, oper_time)
+-        values (#{title}, #{businessType}, #{method}, #{requestMethod}, #{operatorType}, #{operName}, #{deptName}, #{operUrl}, #{operIp}, #{operLocation}, #{operParam}, #{jsonResult}, #{status}, #{errorMsg}, #{costTime}, sysdate())
+-	</insert>
+-	
+-	<select id="selectOperLogList" parameterType="SysOperLog" resultMap="SysOperLogResult">
+-		<include refid="selectOperLogVo"/>
+-		<where>
+-			<if test="operIp != null and operIp != ''">
+-				AND oper_ip like concat('%', #{operIp}, '%')
+-			</if>
+-			<if test="title != null and title != ''">
+-				AND title like concat('%', #{title}, '%')
+-			</if>
+-			<if test="businessType != null">
+-				AND business_type = #{businessType}
+-			</if>
+-			<if test="businessTypes != null and businessTypes.length > 0">
+-			    AND business_type in
+-			    <foreach collection="businessTypes" item="businessType" open="(" separator="," close=")">
+-		 			#{businessType}
+-		        </foreach> 
+-			</if>
+-			<if test="status != null">
+-				AND status = #{status}
+-			</if>
+-			<if test="operName != null and operName != ''">
+-				AND oper_name like concat('%', #{operName}, '%')
+-			</if>
+-			<if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+-				AND oper_time &gt;= #{params.beginTime}
+-			</if>
+-			<if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+-				AND oper_time &lt;= #{params.endTime}
+-			</if>
+-		</where>
+-		order by oper_id desc
+-	</select>
+-	
+-	<delete id="deleteOperLogByIds" parameterType="Long">
+- 		delete from sys_oper_log where oper_id in
+- 		<foreach collection="array" item="operId" open="(" separator="," close=")">
+- 			#{operId}
+-        </foreach> 
+- 	</delete>
+- 	
+- 	<select id="selectOperLogById" parameterType="Long" resultMap="SysOperLogResult">
+-		<include refid="selectOperLogVo"/>
+-		where oper_id = #{operId}
+-	</select>
+-	
+-	<update id="cleanOperLog">
+-        truncate table sys_oper_log
+-    </update>
+-
+-</mapper> 
+-=======
+ <?xml version="1.0" encoding="UTF-8" ?>
+ <!DOCTYPE mapper
+@@ -174,4 +85,7 @@
+     </update>
+ 
+-</mapper> 
+->>>>>>> Stashed changes
++	<delete id="deleteOperLogByTime" parameterType="Date">
++		delete from sys_oper_log where oper_time &lt; #{time}
++	</delete>
++
++</mapper>
+--- /dev/null
++++ b/ruoyi-system/src/main/java/com/ruoyi/system/task/CleanOperLogTask.java
+@@ -0,0 +1,59 @@
++package com.ruoyi.system.task;
++
++import java.util.Calendar;
++import java.util.Date;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++import com.ruoyi.system.service.ISysOperLogService;
++
++/**
++ * 清理操作日志定时任务
++ * 
++ * @author ruoyi
++ */
++@Component("cleanOperLogTask")
++public class CleanOperLogTask
++{
++    private static final Logger log = LoggerFactory.getLogger(CleanOperLogTask.class);
++
++    @Autowired
++    private ISysOperLogService operLogService;
++
++    /**
++     * 清理多少天之前的操作日志
++     * 
++     * @param days 天数，如 30 表示清理 30 天之前的日志
++     */
++    public void clean(int days)
++    {
++        if (days < 0)
++        {
++            log.error("清理操作日志天数不能小于0：{}", days);
++            return;
++        }
++        
++        log.info("开始清理{}天之前的系统操作日志...", days);
++        
++        Calendar calendar = Calendar.getInstance();
++        calendar.add(Calendar.DAY_OF_MONTH, -days);
++        Date time = calendar.getTime();
++        
++        try
++        {
++            int rows = operLogService.deleteOperLogByTime(time);
++            log.info("清理系统操作日志结束，共删除 {} 条过期日志数据。", rows);
++        }
++        catch (Exception e)
++        {
++            log.error("清理系统操作日志失败", e);
++        }
++    }
++    
++    /**
++     * 默认清理30天之前的操作日志
++     */
++    public void cleanDefault()
++    {
++        clean(30);
++    }
++}

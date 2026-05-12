@@ -1,5 +1,6 @@
 package com.ruoyi.system.service;
 
+import java.util.Date;
 import java.util.List;
 import com.ruoyi.system.domain.SysOperLog;
 
@@ -45,4 +46,12 @@ public interface ISysOperLogService
      * 清空操作日志
      */
     public void cleanOperLog();
+
+    /**
+     * 删除某个时间之前的操作日志
+     *
+     * @param time 时间
+     * @return 结果
+     */
+    public int deleteOperLogByTime(Date time);
 }
