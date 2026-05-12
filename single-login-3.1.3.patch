@@ -1,0 +1,65 @@
+diff --git a/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java b/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
+index 1234567..abcdefg 100644
+--- a/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
++++ b/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
+@@ -14,6 +14,11 @@ public class CacheConstants
+
+     /**
+      * 登录用户 redis key
+      */
+     public static final String LOGIN_TOKEN_KEY = "login_tokens:";
+
++    /**
++     * 登录用户Token映射 redis key（用于实现单账号多处登录踢出）
++     */
++    public static final String LOGIN_USER_TOKEN_KEY = "login_user_token:";
++
+     /**
+      * 验证码 redis key
+      */
+diff --git a/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java b/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
+index 1234567..abcdefg 100644
+--- a/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
++++ b/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
+@@ -91,8 +91,13 @@ public class TokenService
+     public void delLoginUser(String token)
+     {
+         if (StringUtils.isNotEmpty(token))
+         {
+             String userKey = getTokenKey(token);
++            LoginUser loginUser = redisCache.getCacheObject(userKey);
++            if (loginUser != null && loginUser.getUserId() != null)
++            {
++                redisCache.deleteObject(getUserTokenKey(loginUser.getUserId()));
++            }
+             redisCache.deleteObject(userKey);
+         }
+     }
+
+@@ -109,6 +114,16 @@ public class TokenService
+         loginUser.setToken(token);
+         setUserAgent(loginUser);
+
++        String userTokenKey = getUserTokenKey(loginUser.getUserId());
++        String oldToken = redisCache.getCacheObject(userTokenKey);
++        if (StringUtils.isNotEmpty(oldToken))
++        {
++            redisCache.deleteObject(getTokenKey(oldToken));
++        }
++
+         refreshToken(loginUser);
++        redisCache.setCacheObject(userTokenKey, token, expireTime, TimeUnit.MINUTES);
+
+         Map<String, Object> claims = new HashMap<>();
+         claims.put(Constants.LOGIN_USER_KEY, token);
+@@ -227,4 +242,9 @@ public class TokenService
+     private String getTokenKey(String uuid)
+     {
+         return CacheConstants.LOGIN_TOKEN_KEY + uuid;
++    }
++
++    private String getUserTokenKey(Long userId)
++    {
++        return CacheConstants.LOGIN_USER_TOKEN_KEY + userId;
+     }
+ }

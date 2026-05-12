@@ -102,6 +102,11 @@ public class TokenService
         if (StringUtils.isNotEmpty(token))
         {
             String userKey = getTokenKey(token);
+            LoginUser loginUser = redisCache.getCacheObject(userKey);
+            if (loginUser != null && loginUser.getUserId() != null)
+            {
+                redisCache.deleteObject(getUserTokenKey(loginUser.getUserId()));
+            }
             redisCache.deleteObject(userKey);
         }
     }
@@ -117,7 +122,16 @@ public class TokenService
         String token = IdUtils.fastUUID();
         loginUser.setToken(token);
         setUserAgent(loginUser);
+
+        String userTokenKey = getUserTokenKey(loginUser.getUserId());
+        String oldToken = redisCache.getCacheObject(userTokenKey);
+        if (StringUtils.isNotEmpty(oldToken))
+        {
+            redisCache.deleteObject(getTokenKey(oldToken));
+        }
+
         refreshToken(loginUser);
+        redisCache.setCacheObject(userTokenKey, token, expireTime, TimeUnit.MINUTES);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put(Constants.LOGIN_USER_KEY, token);
@@ -229,6 +243,11 @@ public class TokenService
     private String getTokenKey(String uuid)
     {
         return CacheConstants.LOGIN_TOKEN_KEY + uuid;
+    }
+
+    private String getUserTokenKey(Long userId)
+    {
+        return CacheConstants.LOGIN_USER_TOKEN_KEY + userId;
     }
 
     /**
