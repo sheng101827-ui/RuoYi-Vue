@@ -35,7 +35,6 @@ index 1234567..abcdefg 100644
              redisCache.deleteObject(userKey);
          }
      }
-
 @@ -109,6 +114,16 @@ public class TokenService
          loginUser.setToken(token);
          setUserAgent(loginUser);
