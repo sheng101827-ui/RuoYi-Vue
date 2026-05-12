@@ -102,7 +102,14 @@ public class TokenService
         if (StringUtils.isNotEmpty(token))
         {
             String userKey = getTokenKey(token);
+            LoginUser loginUser = redisCache.getCacheObject(userKey);
             redisCache.deleteObject(userKey);
+            // 如果用户存在，删除用户ID到token的映射
+            if (loginUser != null && loginUser.getUserId() != null)
+            {
+                String userIdKey = getUserIdKey(loginUser.getUserId());
+                redisCache.deleteObject(userIdKey);
+            }
         }
     }
 
@@ -114,10 +121,30 @@ public class TokenService
      */
     public String createToken(LoginUser loginUser)
     {
+        // 检查该用户是否已有旧的登录token，如果有则删除
+        if (loginUser.getUserId() != null)
+        {
+            String userIdKey = getUserIdKey(loginUser.getUserId());
+            String oldToken = redisCache.getCacheObject(userIdKey);
+            if (StringUtils.isNotEmpty(oldToken))
+            {
+                String oldUserKey = getTokenKey(oldToken);
+                redisCache.deleteObject(oldUserKey);
+                log.info("用户[{}]在新设备登录，已踢出旧设备token[{}]", loginUser.getUsername(), oldToken);
+            }
+        }
+
         String token = IdUtils.fastUUID();
         loginUser.setToken(token);
         setUserAgent(loginUser);
         refreshToken(loginUser);
+
+        // 更新用户ID到token的映射
+        if (loginUser.getUserId() != null)
+        {
+            String userIdKey = getUserIdKey(loginUser.getUserId());
+            redisCache.setCacheObject(userIdKey, token, expireTime, TimeUnit.MINUTES);
+        }
 
         Map<String, Object> claims = new HashMap<>();
         claims.put(Constants.LOGIN_USER_KEY, token);
@@ -128,7 +155,7 @@ public class TokenService
     /**
      * 验证令牌有效期，相差不足20分钟，自动刷新缓存
      * 
-     * @param loginUser 登录信息
+     * @param loginUser
      * @return 令牌
      */
     public void verifyToken(LoginUser loginUser)
@@ -138,6 +165,12 @@ public class TokenService
         if (expireTime - currentTime <= MILLIS_MINUTE_TWENTY)
         {
             refreshToken(loginUser);
+            // 同时刷新用户ID到token的映射过期时间
+            if (loginUser.getUserId() != null)
+            {
+                String userIdKey = getUserIdKey(loginUser.getUserId());
+                redisCache.expire(userIdKey, expireTime, TimeUnit.MINUTES);
+            }
         }
     }
 
@@ -229,6 +262,11 @@ public class TokenService
     private String getTokenKey(String uuid)
     {
         return CacheConstants.LOGIN_TOKEN_KEY + uuid;
+    }
+
+    private String getUserIdKey(Long userId)
+    {
+        return CacheConstants.LOGIN_USERID_KEY + userId;
     }
 
     /**

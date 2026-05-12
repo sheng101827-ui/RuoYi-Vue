@@ -1,0 +1,114 @@
+diff --git a/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java b/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
+index 6d85827..0e71d0c 100644
+--- a/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
++++ b/ruoyi-common/src/main/java/com/ruoyi/common/constant/CacheConstants.java
+@@ -10,6 +10,12 @@ public class CacheConstants
+      */
+     public static final String LOGIN_TOKEN_KEY = "login_tokens:";
+ 
++    /**
++     * 登录用户ID到token的映射 redis key
++     */
++    public static final String LOGIN_USERID_KEY = "login_userid:";
++
++
+     /**
+      * 验证码 redis key
+      */
+diff --git a/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java b/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
+index 0d1a974..8c3e411 100644
+--- a/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
++++ b/ruoyi-framework/src/main/java/com/ruoyi/framework/web/service/TokenService.java
+@@ -97,21 +97,59 @@ public class TokenService
+      */
+     public void delLoginUser(String token)
+     {
+         if (StringUtils.isNotEmpty(token))
+         {
+             String userKey = getTokenKey(token);
++            LoginUser loginUser = redisCache.getCacheObject(userKey);
+             redisCache.deleteObject(userKey);
++            // 如果用户存在，删除用户ID到token的映射
++            if (loginUser != null && loginUser.getUserId() != null)
++            {
++                String userIdKey = getUserIdKey(loginUser.getUserId());
++                redisCache.deleteObject(userIdKey);
++            }
+         }
+     }
+ 
+     /**
+      * 创建令牌
+      * 
+      * @param loginUser 用户信息
+      * @return 令牌
+      */
+     public String createToken(LoginUser loginUser)
+     {
++        // 检查该用户是否已有旧的登录token，如果有则删除
++        if (loginUser.getUserId() != null)
++        {
++            String userIdKey = getUserIdKey(loginUser.getUserId());
++            String oldToken = redisCache.getCacheObject(userIdKey);
++            if (StringUtils.isNotEmpty(oldToken))
++            {
++                String oldUserKey = getTokenKey(oldToken);
++                redisCache.deleteObject(oldUserKey);
++                log.info("用户[{}]在新设备登录，已踢出旧设备token[{}]", loginUser.getUsername(), oldToken);
++            }
++        }
++
+         String token = IdUtils.fastUUID();
+         loginUser.setToken(token);
+         setUserAgent(loginUser);
+         refreshToken(loginUser);
+ 
++        // 更新用户ID到token的映射
++        if (loginUser.getUserId() != null)
++        {
++            String userIdKey = getUserIdKey(loginUser.getUserId());
++            redisCache.setCacheObject(userIdKey, token, expireTime, TimeUnit.MINUTES);
++        }
++
+         Map<String, Object> claims = new HashMap<>();
+         claims.put(Constants.LOGIN_USER_KEY, token);
+         claims.put(Constants.JWT_USERNAME, loginUser.getUsername());
+         return createToken(claims);
+     }
++
++    /**
++     * 验证令牌有效期，相差不足20分钟，自动刷新缓存
++     * 
++     * @param loginUser
++     * @return 令牌
++     */
++    public void verifyToken(LoginUser loginUser)
++    {
++        long expireTime = loginUser.getExpireTime();
++        long currentTime = System.currentTimeMillis();
++        if (expireTime - currentTime <= MILLIS_MINUTE_TWENTY)
++        {
++            refreshToken(loginUser);
++            // 同时刷新用户ID到token的映射过期时间
++            if (loginUser.getUserId() != null)
++            {
++                String userIdKey = getUserIdKey(loginUser.getUserId());
++                redisCache.expire(userIdKey, expireTime, TimeUnit.MINUTES);
++            }
++        }
++    }
+ 
+     /**
+      * 刷新令牌有效期
+@@ -204,6 +242,11 @@ public class TokenService
+         return token;
+     }
+ 
++    private String getUserIdKey(Long userId)
++    {
++        return CacheConstants.LOGIN_USERID_KEY + userId;
++    }
++
+     /**
+      * 角色权限变更后，刷新所有持有该角色的在线用户权限
+      *
