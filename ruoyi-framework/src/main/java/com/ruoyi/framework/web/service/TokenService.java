@@ -114,22 +114,49 @@ public class TokenService
      */
     public String createToken(LoginUser loginUser)
     {
+        // 踢出该用户之前登录的设备：根据用户ID查找旧令牌并删除
+        evictOldToken(loginUser.getUserId());
+
         String token = IdUtils.fastUUID();
         loginUser.setToken(token);
         setUserAgent(loginUser);
         refreshToken(loginUser);
 
+        // 保存用户ID与令牌UUID的映射关系，用于后续踢出旧设备
+        String userTokenKey = getUserTokenKey(loginUser.getUserId());
+        redisCache.setCacheObject(userTokenKey, token, expireTime, TimeUnit.MINUTES);
+
         Map<String, Object> claims = new HashMap<>();
         claims.put(Constants.LOGIN_USER_KEY, token);
-        claims.put(Constants.JWT_USERNAME, loginUser.getUsername());
         return createToken(claims);
+    }
+
+    /**
+     * 踢出用户之前登录的设备
+     * 根据用户ID查找其已有的令牌UUID，若存在则删除旧令牌，使其失效
+     * 
+     * @param userId 用户ID
+     */
+    private void evictOldToken(Long userId)
+    {
+        if (userId == null)
+        {
+            return;
+        }
+        String userTokenKey = getUserTokenKey(userId);
+        String oldTokenUuid = redisCache.getCacheObject(userTokenKey);
+        if (StringUtils.isNotEmpty(oldTokenUuid))
+        {
+            String oldTokenKey = getTokenKey(oldTokenUuid);
+            redisCache.deleteObject(oldTokenKey);
+            log.info("用户[{}]在另一设备登录，旧令牌已失效", userId);
+        }
     }
 
     /**
      * 验证令牌有效期，相差不足20分钟，自动刷新缓存
      * 
-     * @param loginUser 登录信息
-     * @return 令牌
+     * @param loginUser 登录用户
      */
     public void verifyToken(LoginUser loginUser)
     {
@@ -144,7 +171,7 @@ public class TokenService
     /**
      * 刷新令牌有效期
      * 
-     * @param loginUser 登录信息
+     * @param loginUser 登录用户
      */
     public void refreshToken(LoginUser loginUser)
     {
@@ -153,12 +180,18 @@ public class TokenService
         // 根据uuid将loginUser缓存
         String userKey = getTokenKey(loginUser.getToken());
         redisCache.setCacheObject(userKey, loginUser, expireTime, TimeUnit.MINUTES);
+        // 同步刷新用户ID与令牌UUID映射的过期时间
+        if (loginUser.getUserId() != null)
+        {
+            String userTokenKey = getUserTokenKey(loginUser.getUserId());
+            redisCache.expire(userTokenKey, expireTime, TimeUnit.MINUTES);
+        }
     }
 
     /**
      * 设置用户代理信息
      * 
-     * @param loginUser 登录信息
+     * @param loginUser 登录用户
      */
     public void setUserAgent(LoginUser loginUser)
     {
@@ -166,8 +199,8 @@ public class TokenService
         String ip = IpUtils.getIpAddr();
         loginUser.setIpaddr(ip);
         loginUser.setLoginLocation(AddressUtils.getRealAddressByIP(ip));
-        loginUser.setBrowser(UserAgentUtils.getBrowser(userAgent));
-        loginUser.setOs(UserAgentUtils.getOperatingSystem(userAgent));
+        loginUser.setBrowser(userAgent);
+        loginUser.setOs(UserAgentUtils.getOsName(userAgent));
     }
 
     /**
@@ -232,6 +265,17 @@ public class TokenService
     }
 
     /**
+     * 获取用户ID与令牌UUID映射的Redis键
+     *
+     * @param userId 用户ID
+     * @return Redis键
+     */
+    private String getUserTokenKey(Long userId)
+    {
+        return CacheConstants.LOGIN_USER_TOKEN_KEY + userId;
+    }
+
+    /**
      * 角色权限变更后，刷新所有持有该角色的在线用户权限
      *
      * @param roleId            变更的角色ID
@@ -264,7 +308,6 @@ public class TokenService
             // 刷新权限缓存
             loginUser.setPermissions(permissionService.getMenuPermission(loginUser.getUser()));
             refreshToken(loginUser);
-            log.info("角色[{}]权限变更，已刷新在线用户[{}]的权限缓存", roleId, loginUser.getUsername());
         }
     }
 }
