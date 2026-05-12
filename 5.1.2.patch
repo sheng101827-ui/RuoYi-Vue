@@ -1,0 +1,144 @@
+diff --git a/ry.bat b/ry.bat
+index e69de29..d95f3ad 100644
+--- a/ry.bat
++++ b/ry.bat
+@@ -24,44 +24,91 @@
+ 	IF "%id%"=="5" EXIT
+ PAUSE
+-:start
+-    for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+-		set pid=%%a
+-		set image_name=%%b
+-	)
+-	if  defined pid (
+-		echo %%is running
+-		PAUSE
+-	)
+-
+-start javaw %JVM_OPTS% -jar %AppName%
+-
+-echo  starting
+-echo  Start %AppName% success...
+-goto:eof
+-
+-rem stopͨjpspid
+-:stop
+-	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+-		set pid=%%a
+-		set image_name=%%b
+-	)
+-	if not defined pid (echo process %AppName% does not exists) else (
+-		echo prepare to kill %image_name%
+-		echo start kill %pid% ...
+-		rem ݽIDkill
+-		taskkill /f /pid %pid%
+-	)
+-goto:eof
+-:restart
+-	call :stop
+-    call :start
+-goto:eof
+-:status
+-	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+-		set pid=%%a
+-		set image_name=%%b
+-	)
+-	if not defined pid (echo process %AppName% is dead ) else (
+-		echo %image_name% is running
+-	)
++:start
++	set "pid="
++	if exist ruoyi.pid (
++		set /p pid=<ruoyi.pid
++	)
++	if defined pid (
++		tasklist /fi "pid eq %pid%" | findstr "java" >nul
++		if not errorlevel 1 (
++			echo %AppName% is already running with PID %pid%
++			PAUSE
++			goto:eof
++		) else (
++			del ruoyi.pid
++			set "pid="
++		)
++	)
++
++	set APP_ID=%RANDOM%%RANDOM%
++	start javaw %JVM_OPTS% -Dapp.id=%APP_ID% -jar %AppName%
++
++	echo  starting
++	
++	set "pid="
++	for /l %%i in (1, 1, 3) do (
++		timeout /t 1 /nobreak >nul
++		for /f "usebackq tokens=1" %%a in (`jps -v ^| findstr "%APP_ID%"`) do (
++			set pid=%%a
++		)
++		if defined pid goto :save_pid
++	)
++:save_pid
++	if defined pid (
++		echo %pid%> ruoyi.pid
++	)
++
++	echo  Start %AppName% success...
++goto:eof
++
++rem stopͨjpspid
++:stop
++	set "pid="
++	if exist ruoyi.pid (
++		set /p pid=<ruoyi.pid
++	)
++	
++	if defined pid (
++		tasklist /fi "pid eq %pid%" | findstr "java" >nul
++		if not errorlevel 1 (
++			echo found ruoyi.pid, prepare to kill %pid%
++			taskkill /f /pid %pid%
++			del ruoyi.pid
++			goto:eof
++		) else (
++			echo stale ruoyi.pid found, process %pid% is not java.
++			del ruoyi.pid
++			set "pid="
++		)
++	)
++	
++	rem fallback
++	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
++		set pid=%%a
++		set image_name=%%b
++	)
++	if not defined pid (echo process %AppName% does not exists) else (
++		echo prepare to kill %image_name%
++		echo start kill %pid% ...
++		rem ݽIDkill
++		taskkill /f /pid %pid%
++	)
++goto:eof
++:restart
++	call :stop
++    call :start
++goto:eof
++:status
++	set "pid="
++	if exist ruoyi.pid (
++		set /p pid=<ruoyi.pid
++	)
++	if defined pid (
++		tasklist /fi "pid eq %pid%" | findstr "java" >nul
++		if not errorlevel 1 (
++			echo %AppName% is running with PID %pid%
++			goto:eof
++		)
++	)
++
++	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
++		set pid=%%a
++		set image_name=%%b
++	)
++	if not defined pid (echo process %AppName% is dead ) else (
++		echo %image_name% is running
++	)
+ goto:eof

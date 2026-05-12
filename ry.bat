@@ -1,21 +1,21 @@
 @echo off
 
-rem jarÆ½¼¶Ä¿Â¼
+rem jarÆ½ï¿½ï¿½Ä¿Â¼
 set AppName=ruoyi-admin.jar
 
-rem JVM²ÎÊý
+rem JVMï¿½ï¿½ï¿½ï¿½
 set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+PrintGCDateStamps  -XX:+PrintGCDetails -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -XX:+UseParallelOldGC"
 
 
 ECHO.
-	ECHO.  [1] Æô¶¯%AppName%
-	ECHO.  [2] ¹Ø±Õ%AppName%
-	ECHO.  [3] ÖØÆô%AppName%
-	ECHO.  [4] Æô¶¯×´Ì¬ %AppName%
-	ECHO.  [5] ÍË ³ö
+	ECHO.  [1] ï¿½ï¿½ï¿½ï¿½%AppName%
+	ECHO.  [2] ï¿½Ø±ï¿½%AppName%
+	ECHO.  [3] ï¿½ï¿½ï¿½ï¿½%AppName%
+	ECHO.  [4] ï¿½ï¿½ï¿½ï¿½×´Ì¬ %AppName%
+	ECHO.  [5] ï¿½ï¿½ ï¿½ï¿½
 ECHO.
 
-ECHO.ÇëÊäÈëÑ¡ÔñÏîÄ¿µÄÐòºÅ:
+ECHO.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½:
 set /p ID=
 	IF "%id%"=="1" GOTO start
 	IF "%id%"=="2" GOTO stop
@@ -24,23 +24,65 @@ set /p ID=
 	IF "%id%"=="5" EXIT
 PAUSE
 :start
-    for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
-		set pid=%%a
-		set image_name=%%b
+	set "pid="
+	if exist ruoyi.pid (
+		set /p pid=<ruoyi.pid
 	)
-	if  defined pid (
-		echo %%is running
-		PAUSE
+	if defined pid (
+		tasklist /fi "pid eq %pid%" | findstr "java" >nul
+		if not errorlevel 1 (
+			echo %AppName% is already running with PID %pid%
+			PAUSE
+			goto:eof
+		) else (
+			del ruoyi.pid
+			set "pid="
+		)
 	)
 
-start javaw %JVM_OPTS% -jar %AppName%
+	set APP_ID=%RANDOM%%RANDOM%
+	start javaw %JVM_OPTS% -Dapp.id=%APP_ID% -jar %AppName%
 
-echo  starting¡­¡­
-echo  Start %AppName% success...
+	echo  starting
+	
+	set "pid="
+	for /l %%i in (1, 1, 3) do (
+		timeout /t 1 /nobreak >nul
+		for /f "usebackq tokens=1" %%a in (`jps -v ^| findstr "%APP_ID%"`) do (
+			set pid=%%a
+		)
+		if defined pid goto :save_pid
+	)
+:save_pid
+	if defined pid (
+		echo %pid%> ruoyi.pid
+	)
+
+	echo  Start %AppName% success...
 goto:eof
 
-rem º¯ÊýstopÍ¨¹ýjpsÃüÁî²éÕÒpid²¢½áÊø½ø³Ì
+rem stopÍ¨jpspid
 :stop
+	set "pid="
+	if exist ruoyi.pid (
+		set /p pid=<ruoyi.pid
+	)
+	
+	if defined pid (
+		tasklist /fi "pid eq %pid%" | findstr "java" >nul
+		if not errorlevel 1 (
+			echo found ruoyi.pid, prepare to kill %pid%
+			taskkill /f /pid %pid%
+			del ruoyi.pid
+			goto:eof
+		) else (
+			echo stale ruoyi.pid found, process %pid% is not java.
+			del ruoyi.pid
+			set "pid="
+		)
+	)
+	
+	rem fallback
 	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
 		set pid=%%a
 		set image_name=%%b
@@ -48,7 +90,7 @@ rem º¯ÊýstopÍ¨¹ýjpsÃüÁî²éÕÒpid²¢½áÊø½ø³Ì
 	if not defined pid (echo process %AppName% does not exists) else (
 		echo prepare to kill %image_name%
 		echo start kill %pid% ...
-		rem ¸ù¾Ý½ø³ÌID£¬kill½ø³Ì
+		rem Ý½IDkill
 		taskkill /f /pid %pid%
 	)
 goto:eof
@@ -57,6 +99,18 @@ goto:eof
     call :start
 goto:eof
 :status
+	set "pid="
+	if exist ruoyi.pid (
+		set /p pid=<ruoyi.pid
+	)
+	if defined pid (
+		tasklist /fi "pid eq %pid%" | findstr "java" >nul
+		if not errorlevel 1 (
+			echo %AppName% is running with PID %pid%
+			goto:eof
+		)
+	)
+
 	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
 		set pid=%%a
 		set image_name=%%b
