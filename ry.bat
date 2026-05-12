@@ -1,21 +1,22 @@
 @echo off
 
-rem jarÆ½¼¶Ä¿Â¼
+rem jaråŒ…ä¸»ç›®å½•
 set AppName=ruoyi-admin.jar
+set PidFile=%~dp0ruoyi.pid
 
-rem JVM²ÎÊı
+rem JVMå‚æ•°
 set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+PrintGCDateStamps  -XX:+PrintGCDetails -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -XX:+UseParallelOldGC"
 
 
 ECHO.
-	ECHO.  [1] Æô¶¯%AppName%
-	ECHO.  [2] ¹Ø±Õ%AppName%
-	ECHO.  [3] ÖØÆô%AppName%
-	ECHO.  [4] Æô¶¯×´Ì¬ %AppName%
-	ECHO.  [5] ÍË ³ö
+	ECHO.  [1] å¯åŠ¨%AppName%
+	ECHO.  [2] å…³é—­%AppName%
+	ECHO.  [3] é‡å¯%AppName%
+	ECHO.  [4] æŸ¥çœ‹çŠ¶æ€ %AppName%
+	ECHO.  [5] é€€ å‡º
 ECHO.
 
-ECHO.ÇëÊäÈëÑ¡ÔñÏîÄ¿µÄĞòºÅ:
+ECHO.è¯·è¾“å…¥é€‰é¡¹ç¼–å·:
 set /p ID=
 	IF "%id%"=="1" GOTO start
 	IF "%id%"=="2" GOTO stop
@@ -28,40 +29,87 @@ PAUSE
 		set pid=%%a
 		set image_name=%%b
 	)
-	if  defined pid (
-		echo %%is running
+	if defined pid (
+		echo %AppName% is running
 		PAUSE
 	)
 
 start javaw %JVM_OPTS% -jar %AppName%
 
-echo  starting¡­¡­
-echo  Start %AppName% success...
+rem ç­‰å¾…å¯åŠ¨åè®°å½•PIDåˆ°æ–‡ä»¶
+ping -n 3 127.0.0.1 >nul
+for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+    echo %%a > "%PidFile%"
+)
+echo starting......
+echo Start %AppName% success...
 goto:eof
 
-rem º¯ÊıstopÍ¨¹ıjpsÃüÁî²éÕÒpid²¢½áÊø½ø³Ì
+rem åœæ­¢stopä¼˜å…ˆä½¿ç”¨PIDæ–‡ä»¶ï¼Œé¿å…è¯¯æ€
 :stop
-	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
-		set pid=%%a
-		set image_name=%%b
+	setlocal enabledelayedexpansion
+	set killed=0
+
+	if exist "%PidFile%" (
+		set /p pid=<"%PidFile%"
+		if defined pid (
+			tasklist /fi "PID eq %pid%" | findstr /i %pid% >nul
+			if !errorlevel!==0 (
+				echo prepare to kill PID %pid%
+				taskkill /f /pid %pid%
+				set killed=1
+			) else (
+				echo PID %pid% not found in tasklist, may have already exited
+			)
+		)
+		del "%PidFile%" 2>nul
 	)
-	if not defined pid (echo process %AppName% does not exists) else (
-		echo prepare to kill %image_name%
-		echo start kill %pid% ...
-		rem ¸ù¾İ½ø³ÌID£¬kill½ø³Ì
-		taskkill /f /pid %pid%
+
+	if %killed%==0 (
+		for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+			set pid=%%a
+			set image_name=%%b
+		)
+		if not defined pid (
+			echo process %AppName% does not exists
+		) else (
+			echo prepare to kill %image_name%
+			echo start kill %pid% ...
+			taskkill /f /pid %pid%
+			del "%PidFile%" 2>nul
+		)
 	)
+	endlocal
 goto:eof
 :restart
 	call :stop
     call :start
 goto:eof
 :status
+	setlocal enabledelayedexpansion
+	set status_pid=
+
+	if exist "%PidFile%" (
+		set /p status_pid=<"%PidFile%"
+		if defined status_pid (
+			tasklist /fi "PID eq %status_pid%" | findstr /i %status_pid% >nul
+			if !errorlevel!==0 (
+				echo %AppName% is running ^(PID: %status_pid%^)
+				endlocal
+				goto:eof
+			)
+		)
+	)
+
 	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
 		set pid=%%a
 		set image_name=%%b
 	)
-	if not defined pid (echo process %AppName% is dead ) else (
-		echo %image_name% is running
+	if not defined pid (
+		echo process %AppName% is dead
+		if exist "%PidFile%" del "%PidFile%" 2>nul
+	) else (
+		echo %image_name% is running ^(PID: %pid%^)
 	)
+	endlocal
 goto:eof
