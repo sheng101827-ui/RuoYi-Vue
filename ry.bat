@@ -1,21 +1,24 @@
 @echo off
 
-rem jarÆ½¼¶Ä¿Â¼
+rem jarÆ½ï¿½ï¿½Ä¿Â¼
 set AppName=ruoyi-admin.jar
 
-rem JVM²ÎÊý
+rem JVMï¿½ï¿½ï¿½ï¿½
 set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+PrintGCDateStamps  -XX:+PrintGCDetails -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -XX:+UseParallelOldGC"
-
+setlocal enabledelayedexpansion
+set "AppHome=%~dp0"
+set "PID_FILE=%AppHome%ruoyi.pid"
+cd /d "%AppHome%"
 
 ECHO.
-	ECHO.  [1] Æô¶¯%AppName%
-	ECHO.  [2] ¹Ø±Õ%AppName%
-	ECHO.  [3] ÖØÆô%AppName%
-	ECHO.  [4] Æô¶¯×´Ì¬ %AppName%
-	ECHO.  [5] ÍË ³ö
+	ECHO.  [1] ï¿½ï¿½ï¿½ï¿½%AppName%
+	ECHO.  [2] ï¿½Ø±ï¿½%AppName%
+	ECHO.  [3] ï¿½ï¿½ï¿½ï¿½%AppName%
+	ECHO.  [4] ï¿½ï¿½ï¿½ï¿½×´Ì¬ %AppName%
+	ECHO.  [5] ï¿½ï¿½ ï¿½ï¿½
 ECHO.
 
-ECHO.ÇëÊäÈëÑ¡ÔñÏîÄ¿µÄÐòºÅ:
+ECHO.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½:
 set /p ID=
 	IF "%id%"=="1" GOTO start
 	IF "%id%"=="2" GOTO stop
@@ -24,32 +27,53 @@ set /p ID=
 	IF "%id%"=="5" EXIT
 PAUSE
 :start
-    for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
-		set pid=%%a
-		set image_name=%%b
-	)
-	if  defined pid (
-		echo %%is running
+	call :findPidFromFile
+	if not defined pid call :findPidFromJps
+	if defined multi_match (
+		echo found multiple java processes matching %AppName%, skip start
 		PAUSE
+		goto:eof
+	)
+	if defined pid (
+		echo !image_name! is running
+		PAUSE
+		goto:eof
 	)
 
-start javaw %JVM_OPTS% -jar %AppName%
+	set "pid="
+	for /f %%i in ('powershell -NoProfile -Command "$p = Start-Process -FilePath 'javaw' -ArgumentList '%JVM_OPTS% -jar %AppName%' -WorkingDirectory '%AppHome%' -PassThru; $p.Id"') do set "pid=%%i"
+	if not defined pid (
+		echo Start %AppName% failed...
+		goto:eof
+	)
 
-echo  starting¡­¡­
-echo  Start %AppName% success...
+	>"%PID_FILE%" echo !pid!
+	echo  startingï¿½ï¿½ï¿½ï¿½
+	echo  Start %AppName% success, pid=!pid! ...
 goto:eof
 
-rem º¯ÊýstopÍ¨¹ýjpsÃüÁî²éÕÒpid²¢½áÊø½ø³Ì
 :stop
-	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
-		set pid=%%a
-		set image_name=%%b
+	call :findPidFromFile
+	if defined pid (
+		echo prepare to kill !image_name!
+		echo start kill !pid! ...
+		taskkill /f /pid !pid!
+		if !errorlevel! equ 0 if exist "%PID_FILE%" del /f /q "%PID_FILE%"
+		goto:eof
 	)
-	if not defined pid (echo process %AppName% does not exists) else (
-		echo prepare to kill %image_name%
-		echo start kill %pid% ...
-		rem ¸ù¾Ý½ø³ÌID£¬kill½ø³Ì
-		taskkill /f /pid %pid%
+
+	if exist "%PID_FILE%" del /f /q "%PID_FILE%"
+	call :findPidFromJps
+	if defined multi_match (
+		echo found multiple java processes matching %AppName%, skip stop
+		goto:eof
+	)
+	if not defined pid (
+		echo process %AppName% does not exists
+	) else (
+		echo prepare to kill !image_name!
+		echo start kill !pid! ...
+		taskkill /f /pid !pid!
 	)
 goto:eof
 :restart
@@ -57,11 +81,48 @@ goto:eof
     call :start
 goto:eof
 :status
-	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
-		set pid=%%a
-		set image_name=%%b
-	)
-	if not defined pid (echo process %AppName% is dead ) else (
-		echo %image_name% is running
+	call :findPidFromFile
+	if not defined pid call :findPidFromJps
+	if defined multi_match (
+		echo found multiple java processes matching %AppName%
+	) else if not defined pid (
+		echo process %AppName% is dead
+	) else (
+		echo !image_name! is running, pid=!pid!
 	)
 goto:eof
+
+:findPidFromFile
+	set "pid="
+	set "image_name="
+	set "multi_match="
+	if exist "%PID_FILE%" (
+		set /p pid=<"%PID_FILE%"
+		if defined pid (
+			for /f "usebackq tokens=1,*" %%a in (`jps -l ^| findstr /b /c:"!pid! " ^| findstr /i /c:"%AppName%"`) do (
+				set "pid=%%a"
+				set "image_name=%%b"
+			)
+		)
+	)
+	if not defined image_name set "pid="
+	goto:eof
+
+:findPidFromJps
+	set "pid="
+	set "image_name="
+	set "multi_match="
+	set /a match_count=0
+	for /f "usebackq tokens=1,*" %%a in (`jps -l ^| findstr /i /c:"%AppName%"`) do (
+		set /a match_count+=1
+		if !match_count! equ 1 (
+			set "pid=%%a"
+			set "image_name=%%b"
+		)
+	)
+	if !match_count! gtr 1 (
+		set "pid="
+		set "image_name="
+		set "multi_match=1"
+	)
+	goto:eof
