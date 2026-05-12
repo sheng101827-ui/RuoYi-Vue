@@ -1,0 +1,118 @@
+diff --git a/ry.bat b/ry.bat
+index original..updated 100644
+--- a/ry.bat
++++ b/ry.bat
+@@ -2,6 +2,7 @@
+
+ rem jarƽĿ¼
+ set AppName=ruoyi-admin.jar
++set PidFile=ruoyi.pid
+
+ rem JVM
+ set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+PrintGCDateStamps  -XX:+PrintGCDetails -XX:NewRatio=1 -XX:SurvivorRatio=30 -XX:+UseParallelGC -XX:+UseParallelOldGC"
+@@ -26,27 +27,92 @@ PAUSE
+ 	IF "%id%"=="5" EXIT
+ PAUSE
+
+ :start
+-    for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
++	set pid=
++	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+ 		set pid=%%a
+ 		set image_name=%%b
+ 	)
+-	if  defined pid (
+-		echo %%is running
++	if defined pid (
++		echo %AppName% is already running, PID: %pid%
+ 		PAUSE
++		goto:eof
+ 	)
+ 
+-start javaw %JVM_OPTS% -jar %AppName%
++	start javaw %JVM_OPTS% -jar %AppName%
++
++	ping -n 3 127.0.0.1 >nul
++
++	set pid=
++	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
++		set pid=%%a
++		set image_name=%%b
++	)
+
+-echo  starting
+-echo  Start %AppName% success...
++	if defined pid (
++		echo %pid% > %PidFile%
++		echo Start %AppName% success, PID: %pid%, saved to %PidFile%
++	) else (
++		echo Start %AppName% may have failed, please check
++	)
+ goto:eof
+
+-rem stopͨjpspid
++rem stop: 优先从 PID 文件读取 PID 杀进程，失败则回退到 jps findstr
+ :stop
++	set pid=
++	if exist %PidFile% (
++		for /f "usebackq" %%a in ("%PidFile%") do set pid=%%a
++	)
++
++	if defined pid (
++		echo Read PID from %PidFile%: %pid%
++		echo Prepare to kill PID %pid% ...
++		taskkill /f /pid %pid% >nul 2>&1
++		if errorlevel 1 (
++			echo Kill PID %pid% failed, process may not exist
++			del %PidFile% >nul 2>&1
++			echo Fallback to jps findstr ...
++			call :stop_fallback
++		) else (
++			echo Kill PID %pid% success
++			del %PidFile% >nul 2>&1
++		)
++	) else (
++		echo %PidFile% not found, fallback to jps findstr ...
++		call :stop_fallback
++	)
++goto:eof
++
++:stop_fallback
++	set pid=
+ 	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+ 		set pid=%%a
+ 		set image_name=%%b
+ 	)
+ 	if not defined pid (echo process %AppName% does not exists) else (
+ 		echo prepare to kill %image_name%
+ 		echo start kill %pid% ...
+-		rem IDkill
+ 		taskkill /f /pid %pid%
++		if exist %PidFile% del %PidFile% >nul 2>&1
+ 	)
+ goto:eof
++
+ :restart
+ 	call :stop
+     call :start
+ goto:eof
++
+ :status
++	set file_pid=
++	if exist %PidFile% (
++		for /f "usebackq" %%a in ("%PidFile%") do set file_pid=%%a
++		echo %PidFile% exists, recorded PID: %file_pid%
++	) else (
++		echo %PidFile% not found
++	)
++
++	set pid=
+ 	for /f "usebackq tokens=1-2" %%a in (`jps -l ^| findstr %AppName%`) do (
+ 		set pid=%%a
+ 		set image_name=%%b
+ 	)
+ 	if not defined pid (echo process %AppName% is dead ) else (
+-		echo %image_name% is running
++		echo %image_name% is running, PID: %pid%
+ 	)
+ goto:eof
